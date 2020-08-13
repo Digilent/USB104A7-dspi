@@ -8,9 +8,9 @@
             "args": [
                 "-g3",
                 "-O0",
-                "USB104A7_dspi_DemoApp.c",
+                "USB104A7_DSPI_DemoApp.c",
                 "-o",
-                "${workspaceFolder}\\USB104A7_dspi_DemoApp.exe",
+                "${workspaceFolder}\\USB104A7_DSPI_DemoApp.exe",
                 "-L${workspaceFolder}",
                 "-ldspi",
                 "-ldmgr",
@@ -29,9 +29,9 @@
             "args": [
                 "-g3",
                 "-O0",
-                "USB104A7_dspi_DemoApp.c",
+                "USB104A7_DSPI_DemoApp.c",
                 "-o",
-                "${workspaceFolder}/USB104A7_dspi_DemoApp.o",
+                "${workspaceFolder}/USB104A7_DSPI_DemoApp.o",
                 "-Wl,-rpath=/usr/lib64/digilent/adept",
                 "-L/usr/lib64/digilent/adept",
                 "-ldspi",
