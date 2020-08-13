@@ -1,0 +1,6 @@
+[submodule "FPGA/digilent-vitis-scripts"]
+	path = FPGA/sw/scripts
+	url = https://github.com/digilent/digilent-vitis-scripts
+[submodule "FPGA/digilent-vivado-scripts"]
+	path = FPGA/hw/scripts
+	url = https://github.com/digilent/digilent-vivado-scripts

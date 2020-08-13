@@ -1,0 +1,47 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "buildwin32",
+            "command": "gcc",
+            "args": [
+                "-g3",
+                "-O0",
+                "USB104A7_dspi_DemoApp.c",
+                "-o",
+                "${workspaceFolder}\\USB104A7_dspi_DemoApp.exe",
+                "-L${workspaceFolder}",
+                "-ldspi",
+                "-ldmgr",
+                "-DWIN32"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "type": "shell",
+            "label": "buildlinux",
+            "command": "gcc",
+            "args": [
+                "-g3",
+                "-O0",
+                "USB104A7_dspi_DemoApp.c",
+                "-o",
+                "${workspaceFolder}/USB104A7_dspi_DemoApp.o",
+                "-Wl,-rpath=/usr/lib64/digilent/adept",
+                "-L/usr/lib64/digilent/adept",
+                "-ldspi",
+                "-ldmgr",
+                "-lpthread"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        }
+    ]
+}
