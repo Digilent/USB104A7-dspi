@@ -15,7 +15,7 @@ This project demonstrates how to use Adept DSPI with the USB104A7 board. This de
 Requirements
 ------------
 * **USB104A7**: To purchase a USB104A7, see the [Digilent Store](https://store.digilentinc.com/usb104a7/)
-* **Vivado 2020.1 Installation with Vitis*: To set up Vivado, see the [Installing Vivado and Digilent Board Files Tutorial](https://reference.digilentinc.com/vivado/installing-vivado/start).
+* **Vivado 2020.1 Installation with Vitis**: To set up Vivado, see the [Installing Vivado and Digilent Board Files Tutorial](https://reference.digilentinc.com/vivado/installing-vivado/start).
 * **Adept Runtime**: Download links available on the [Adept Wiki](https://reference.digilentinc.com/reference/software/adept/start)
 * **Serial Terminal Emulator Application (Optional)**: For more information see the [Installing and Using a Terminal Emulator Tutorial](https://reference.digilentinc.com/learn/programmable-logic/tutorials/tera-term).
 * **USB A Cable**
