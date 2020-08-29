@@ -14,7 +14,6 @@
 
 #endif
 
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -28,6 +27,12 @@
 
 
 #ifndef strlwr
+/**
+* Converts a string to lower case
+*
+* @return pointer to input str in lower case
+*
+*/
 char* strlwr(char* str){
 	uint8_t *p = (uint8_t*) str;
 	while(*p){
@@ -38,12 +43,11 @@ char* strlwr(char* str){
 }
 #endif
 
-
-//Command Protocol:
-//Op is sent then a parameter or parameters
-
 #define op_write 0xAA
 #define op_read 0xBB
+
+#define BTNREG 0
+#define LEDREG 1
 
 #ifndef bool
 typedef enum { false, true } bool;
@@ -52,19 +56,17 @@ typedef enum { false, true } bool;
 //Function flags
 bool fWrite=false;
 bool fRead=false;
-
 bool fExitApplication=false;
 
 //DSPI Initialized Flag
 bool fDspiInit=false;
 
 //Global Variables
-uint32_t length = 0;
+uint8_t reg = 0;
+uint8_t data = 0;
 char input[256];
-
 BYTE sendBuf[128];
 BYTE recvBuf[128];
-
 
 DWORD threadID;
 enum cmdState{
@@ -81,6 +83,7 @@ int failattempt=0;
 //Forward Declarations
 void closeDSPI();
 int parseArgs(char* input);
+int parseParam(char* arg);
 void printUsage();
 int initDSPI();
 
@@ -138,12 +141,13 @@ int main(int argc, char* argv[]){
 			
 		}
 
-		//Write wave operation
+		//Write LEDs operation
 		if (fWrite){
-			fWrite=false;
+			fWrite = false;
 
 			sendBuf[0] = op_write;
-			sendBuf[1] = (uint8_t)length;
+			sendBuf[1] = reg;
+			sendBuf[2] = data;
 			if(!DspiPut(hif, 0, 1, sendBuf, recvBuf, 2, 0)){
 				status = DmgrGetLastError();
 				printf("Error %d sending write message.\n",status);
@@ -151,7 +155,10 @@ int main(int argc, char* argv[]){
 				cmdState=GETINPUT;
 				continue;
 			}
-			if(!DspiPut(hif, 0, 1, sendBuf+2, recvBuf, length, 0)){
+			//A small delay is added to allow the USB104A7 to queue up another SPI transfer.
+			//This is a limitation of the software driver used in this demo.
+			nanosleep(&ts, NULL);
+			if(!DspiPut(hif, 0, 1, sendBuf+2, recvBuf, 1, 0)){
 				status = DmgrGetLastError();
 				printf("Error %d sending write message.\n",status);
 				fDspiInit=fFalse;
@@ -162,28 +169,27 @@ int main(int argc, char* argv[]){
 			cmdState=GETINPUT;
 		}
 		if (fRead){
-			fRead=false;
+			fRead = false;
 
-			sendBuf[0]=op_read;
-			sendBuf[1]=(uint8_t)length;
+			sendBuf[0] = op_read;
+			sendBuf[1] = reg;
 			if(!DspiPut(hif, 0, 0, sendBuf, recvBuf, 2, 0)){
 				status = DmgrGetLastError();
 				printf("Error %d sending read command message.\n",status);
 				cmdState=GETINPUT;
 				continue;
 			}
-			DmgrSetTransTimeout(hif, 5000);
-			if(!DspiGet(hif, 0, 1, 1, recvBuf, length+1, fFalse)){
+			//A small delay is added to allow the USB104A7 to queue up another SPI transfer.
+			//This is a limitation of the software driver used in this demo.
+			nanosleep(&ts, NULL);
+			if(!DspiGet(hif, 0, 1, 1, recvBuf, 1, fFalse)){
 				status = DmgrGetLastError();
 				printf("Error %d reading message.\n",status);
 				cmdState=GETINPUT;
 				continue;
 			}
 
-			printf("Received:");
-			for(int i =1; i<length+1; i++){
-				printf("0x%02X ", recvBuf[i]);
-			}
+			printf("Register %d = 0x%02X", reg, recvBuf[0]);
 			printf("\n");
 			cmdState=GETINPUT;
 		}
@@ -224,37 +230,37 @@ int parseArgs(char* input){
 	}
 	while(arg!=NULL){
 		if(strcmp(strlwr(arg), "write")==0){
-			length =0;
 			arg = strtok(NULL, " \n");
-			while(arg != NULL){
-				sscanf(arg, "%X", &sendBuf[length+2]);
-				length++;
-				arg = strtok(NULL, " \n");
-			}
-			if(length==0){
-				printf("Please enter data to write in hex.");
+			reg = parseParam(arg);
+			if(reg == -1){
+				printf("Unrecognize register %s. Please enter register number/signifier: IE: 1 0x1 led btn", arg);
 				return -1;
 			}
-			else{
-				fWrite=true;
+			arg = strtok(NULL, " \n");
+			data = parseParam(arg);
+			if(data == -1){
+				printf("Unrecognized data: %s. Please enter a decimal or hex value. IE: 0xA or 10", arg);
+				return -1;
 			}
-			
+			fWrite=true;
 		}
 		else if(strcmp(strlwr(arg), "read")==0){
 			arg = strtok(NULL, " \n");
-			if(arg!=NULL){
-				length = atoi(arg);
-			}
-			if(length>0){
-				fRead=true;
-			}
-			else{
-				printf("Please enter the length to read.");
+			reg = parseParam(arg);
+			if(reg == -1){
+				printf("Unrecognize register %s. Please enter data to write in hex.", arg);
 				return -1;
 			}
+
+			fRead=true;
+		}
+		else if(strcmp(strlwr(arg), "help")==0 || arg[0]=='?'){
+			printUsage();
+			return -1;
 		}
 		else {
 			printf("Error: Invalid argument %s\n", arg);
+			printUsage();
 			return -1;
 		}
 		arg = strtok(NULL, " \n");
@@ -264,13 +270,51 @@ int parseArgs(char* input){
 }
 
 /**
+* Parses the input string into a value.
+*
+* @param input the input string to parse
+*
+* @return integer value of a parameter
+*
+*/
+int parseParam(char* arg){
+	uint8_t val;
+	if(arg==NULL){
+		return -1;
+	}
+	//0xNN
+	if(arg[0]=='0' && (arg[1]=='x'||arg[1]=='X')){
+		sscanf(arg, "0x%X", &val);
+	}
+	//led(s)
+	else if (strncmp(strlwr(arg), "led", 3)==0){
+		val = LEDREG;
+	}
+	else if(strncmp(strlwr(arg),"btn", 3)==0){
+		val = BTNREG;
+	}
+	//N
+	else{
+		val = strtol(arg, NULL, 10);
+		if (val==0 && arg[0]!='0'){//strtol returns 0 if no number is found. Check if the arg is actually 0
+			val=-1;//Arg was not a number
+		}
+	}
+	return val;
+}
+
+/**
 * Prints the usage of the program
 */
 void printUsage(){
 	printf("USB104A7 DSPI demo\n------------------------------\n");
+	printf("This demo implements 64 makeshift registers on the USB104A7 that this application can read and write to.\n");
+	printf("Registers:\n");
+	printf("0 \"btn\" - Buttons\n1 \"led\" - LEDs\n2 - 63 General Purpose\n");
 	printf("Commands\n");
-	printf("write [bytes in hex]\t-\twrite bytes to device. IE: write 01 aa 3a 4b 77\n");
-	printf("read [length]\t-\treads [length] bytes from device. Read data is a counter\n");
+	printf("write [register] [byte]\t-\twrite byte to \"register\" on board. IE: \"write led 5\" will turn on LD2 and LD0\n");
+	printf("read [register]\t-\treads a \"register\" from the device. IE: \"read btn\" will read the value of the buttons\n");
+	printf("help ?\t-\tPrints this usage menu\n");
 
 }
 
@@ -322,6 +366,10 @@ int initDSPI(){
 	printf("DSPI Device Opened\n");
 	return 0;
 }
+
+/**
+* User input thread. Polls fgets for user input, then waits for cmdState to return to GETINPUT.
+*/
 #if defined(WIN32)
 DWORD WINAPI TerminalThread(){
 #else
