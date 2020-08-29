@@ -4,12 +4,13 @@ USB104A7 DSPI Demo
 Description
 -----------
 
-This project demonstrates how to use Adept DSPI with the USB104A7 board. This demo comes in two parts, the FPGA project and the PC console application. Vivado is used to build the hardware platform and Xilinx Vitis is used to program the microblaze processor with the demo C/C++ application. The DSPI port provides a USB connected SPI interface between the PC software and FPGA logic. This interface connection sends and receives data to the USB104A7 running the demo application.
+This project demonstrates how to use Adept DSPI with the USB104A7 board. This demo comes in two parts, the FPGA project and the PC console application. Vivado is used to build the hardware platform and Xilinx Vitis is used to program the microblaze processor with the demo C/C++ application. The DSPI port provides a USB connected SPI interface between the PC software and FPGA logic. This interface connection sends and receives data to the USB104A7 running the demo application running as a SPI slave. Makeshift registers are implemented on the device to read and write from the console application. Registers 0 and 1 are tied to the state of the buttons and LEDs respectively.
 
 | Command			       | Function						                                                                  |
 | ---------------------    | ------------------------------------------------------------------------------------------------ |
-| write [hex bytes]   | write arbitrary bytes to device. IE: write 01 aa 3a 4b 77  |
-| read [length]					   | reads [length] bytes from device. Read data is a counter  |
+| write [register] [byte]  | write byte to [register]. IE: "write led 5" or "write 1 5" will turn on LD2 and LD0. "write 34 0xAB" will write AB to (unused) register 34  |
+| read [register]		| reads current value of [register]. IE: "read btn" or "read 0" will read the button state. "read 34" will read the value of (unused) register 34  |
+
 
 
 Requirements
