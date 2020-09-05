@@ -56,7 +56,7 @@ typedef enum { false, true } bool;
 //Function flags
 bool fWrite=false;
 bool fRead=false;
-bool fExitApplication=false;
+bool fRunApplication=false;
 
 //DSPI Initialized Flag
 bool fDspiInit=false;
@@ -93,6 +93,24 @@ DWORD WINAPI TerminalThread();
 #else
 pthread_t terminalHandle;
 void* terminalThread();
+
+void
+SignalHandler(int sig) {
+    if ( SIGINT == sig ) {
+        fRunApplication = 0;
+    }
+
+    if ( SIGHUP == sig ) {
+        fRunApplication = 0;
+    }
+
+    if ( SIGTERM == sig ) {
+        fRunApplication = 0;
+    }
+
+    DebugMsg(INFO, "INFO: received request to terminate!!!\n");
+}
+
 #endif
 
 int main(int argc, char* argv[]){
@@ -116,10 +134,32 @@ int main(int argc, char* argv[]){
 #if defined (WIN32)
 	terminalHandle = CreateThread(0, 0, TerminalThread, NULL, 0, &threadID);
 #else
+	struct sigaction    sa;
+    /* Setup a signal handler to catch Ctrl-C so that we can attempt a
+    ** graceful shutdown.
+    */
+    sa.sa_handler = &SignalHandler;
+    sa.sa_flags = SA_RESTART;
+    sigfillset(&sa.sa_mask);
+    if ( -1 == sigaction(SIGINT, &sa, NULL) ) {
+        DebugMsg(CRITICAL, "ERROR: failed to register signal handler for SIGINT\n");
+        return 1;
+    }
+
+    if ( -1 == sigaction(SIGHUP, &sa, NULL) ) {
+        DebugMsg(CRITICAL, "ERROR: failed to register signal handler for SIGHUP\n");
+        return 1;
+    }
+
+    if ( -1 == sigaction(SIGTERM, &sa, NULL) ) {
+        DebugMsg(CRITICAL, "ERROR: failed to register signal handler for SIGHUP\n");
+        return 1;
+    }
+
 	status = pthread_create(&terminalHandle, NULL, &terminalThread, NULL);
 #endif
 
-	while(1){
+	while(fRunApplication){
 		
 		//If the DSPI is not connected
 		if(fDspiInit==false){
@@ -197,7 +237,8 @@ int main(int argc, char* argv[]){
 		
 		nanosleep(&ts, NULL);
 	}
-
+	closeDSPI();
+	exit(0);
 	return 0;
 }
 
@@ -377,7 +418,7 @@ void* terminalThread(){
 #endif
 	
 		//Print command prompt
-		while(1){
+		while(fRunApplication){
 			printf("Enter command:");
 			fgets(input, sizeof(input), stdin);
 			cmdState=EXECUTE;
